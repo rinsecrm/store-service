@@ -4,21 +4,26 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 
-	"github.com/your-org/store-service/core/logging"
-	"github.com/your-org/store-service/internal/canaryctx"
-	"github.com/your-org/store-service/internal/data"
-	"github.com/your-org/store-service/internal/server"
-	pb "github.com/your-org/store-service/proto/go"
+	"github.com/rinsecrm/store-service/core/logging"
+	"github.com/rinsecrm/store-service/internal/canaryctx"
+	"github.com/rinsecrm/store-service/internal/data"
+	"github.com/rinsecrm/store-service/internal/metrics"
+	"github.com/rinsecrm/store-service/internal/server"
+	"github.com/rinsecrm/store-service/internal/tracing"
+	pb "github.com/rinsecrm/store-service/proto/go"
 )
 
 var (
@@ -34,6 +39,7 @@ type Config struct {
 	Region          string `envconfig:"AWS_REGION" default:"us-east-1"`
 	LocalDebug      bool   `envconfig:"LOCAL_DEBUG" default:"false"`
 	DynamoEndpoint  string `envconfig:"DYNAMODB_ENDPOINT" default:""`
+	TempoHost       string `envconfig:"TEMPO_HOST" default:""`
 }
 
 func main() {
@@ -55,6 +61,15 @@ func main() {
 	if cfg.LocalDebug {
 		logging.SetLevel(logrus.DebugLevel)
 		logging.Info("Debug logging enabled")
+	}
+
+	// Initialize tracing
+	if err := tracing.Start(tracing.Config{
+		ServiceName: name,
+		TempoHost:   cfg.TempoHost,
+		Version:     version,
+	}); err != nil {
+		logging.WithError(err).Error("Failed to initialize tracing")
 	}
 
 	logging.WithFields(logging.Fields{
@@ -83,12 +98,28 @@ func main() {
 		dynamoClient = dynamodb.NewFromConfig(awsConfig)
 	}
 
+	// Start metrics server
+	metricsServer := &http.Server{
+		Addr:    fmt.Sprintf(":%d", cfg.MetricsPort),
+		Handler: metrics.MetricsHandler(),
+	}
+	go func() {
+		logging.WithField("port", cfg.MetricsPort).Info("Starting metrics server")
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logging.WithError(err).Error("Metrics server error")
+		}
+	}()
+
 	// Initialize store
 	storeService := data.NewDynamoStore(dynamoClient, cfg.DynamoTableName)
 
-	// Create gRPC server with canary interceptor
+	// Create gRPC server with canary, metrics, and tracing interceptors
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(canaryctx.UnaryServerInterceptor()),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		grpc.ChainUnaryInterceptor(
+			canaryctx.UnaryServerInterceptor(),
+			metrics.UnaryServerInterceptor(),
+		),
 	)
 
 	// Register the store service
@@ -112,6 +143,19 @@ func main() {
 		<-sigChan
 
 		logging.Info("Shutting down store service...")
+
+		// Shutdown metrics server
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := metricsServer.Shutdown(ctx); err != nil {
+			logging.WithError(err).Error("Failed to shutdown metrics server")
+		}
+
+		// Shutdown tracing
+		if err := tracing.Stop(ctx); err != nil {
+			logging.WithError(err).Error("Failed to shutdown tracing")
+		}
+
 		grpcServer.GracefulStop()
 	}()
 

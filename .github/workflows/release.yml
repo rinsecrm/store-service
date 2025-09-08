@@ -1,0 +1,154 @@
+name: Store Service Release
+
+# Trigger on version tags
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  GO_VERSION: '1.25.1'
+  DOCKER_IMAGE: ghcr.io/rinsecrm/store-service
+  REGISTRY: ghcr.io
+  MANIFESTS_REPO: rinsecrm/manifests-microservices
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Run tests
+      run: make test
+
+    - name: Build binary
+      run: |
+        VERSION="${{ github.ref_name }}"
+        echo "Building release version: $VERSION"
+        go build -ldflags="-X main.version=$VERSION" -o bin/store-service ./cmd/server
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract version from tag
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Build and push release image
+      run: |
+        VERSION=${{ steps.version.outputs.VERSION }}
+        docker build -f Dockerfile.ci -t ${{ env.DOCKER_IMAGE }}:$VERSION .
+        docker tag ${{ env.DOCKER_IMAGE }}:$VERSION ${{ env.DOCKER_IMAGE }}:latest
+        docker push ${{ env.DOCKER_IMAGE }}:$VERSION
+        docker push ${{ env.DOCKER_IMAGE }}:latest
+        
+        echo "Built and pushed release images:"
+        echo "- ${{ env.DOCKER_IMAGE }}:$VERSION"
+        echo "- ${{ env.DOCKER_IMAGE }}:latest"
+
+    - name: Update manifests repository
+      env:
+        MANIFESTS_TOKEN: ${{ secrets.MANIFESTS_TOKEN }}
+      run: |
+        VERSION=${{ steps.version.outputs.VERSION }}
+        
+        # Clone manifests repository
+        git clone https://github.com/${{ env.MANIFESTS_REPO }}.git manifests-repo
+        cd manifests-repo
+        
+        # Configure git
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        
+        # 1. Create PR for staging
+        echo "Creating PR for staging..."
+        git checkout -b "release/store-service-staging-$VERSION"
+        sed -i "s/newTag: .*/newTag: $VERSION/" kustomize/store-service/overlays/staging/kustomization.yaml
+        git add kustomize/store-service/overlays/staging/kustomization.yaml
+        git commit -m "chore: update store-service to $VERSION for staging"
+        git push https://$MANIFESTS_TOKEN@github.com/${{ env.MANIFESTS_REPO }}.git "release/store-service-staging-$VERSION"
+        
+        # Create staging PR using GitHub CLI
+        gh pr create \
+          --title "Staging: Release Store Service $VERSION" \
+          --body "Automated release PR for staging environment.
+
+        **Version:** $VERSION
+        **Environment:** Staging
+        **Docker Image:** ghcr.io/rinsecrm/store-service:$VERSION
+
+        This PR updates the staging environment to use the new release." \
+          --base main \
+          --head "release/store-service-staging-$VERSION" || echo "Staging PR may already exist"
+        
+        # 2. Create PR for production
+        echo "Creating PR for production..."
+        git checkout main
+        git checkout -b "release/store-service-production-$VERSION"
+        sed -i "s/newTag: .*/newTag: $VERSION/" kustomize/store-service/overlays/production/kustomization.yaml
+        git add kustomize/store-service/overlays/production/kustomization.yaml
+        git commit -m "chore: update store-service to $VERSION for production"
+        git push https://$MANIFESTS_TOKEN@github.com/${{ env.MANIFESTS_REPO }}.git "release/store-service-production-$VERSION"
+        
+        # Create production PR using GitHub CLI
+        gh pr create \
+          --title "Production: Release Store Service $VERSION" \
+          --body "Automated release PR for production environment.
+
+        **Version:** $VERSION
+        **Environment:** Production
+        **Docker Image:** ghcr.io/rinsecrm/store-service:$VERSION
+
+        This PR updates the production environment to use the new release.
+        
+        **Note:** This should be merged after staging has been tested and approved." \
+          --base main \
+          --head "release/store-service-production-$VERSION" || echo "Production PR may already exist"
+        
+        echo "Release workflow completed:"
+        echo "- Integration will automatically get latest via ArgoCD sync"
+        echo "- Staging PR created for $VERSION"
+        echo "- Production PR created for $VERSION"
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Store Service ${{ steps.version.outputs.VERSION }}
+        body: |
+          ## Store Service ${{ steps.version.outputs.VERSION }}
+          
+          ### Docker Images
+          - `ghcr.io/rinsecrm/store-service:${{ steps.version.outputs.VERSION }}`
+          - `ghcr.io/rinsecrm/store-service:latest`
+          
+          ### Changes
+          See the [changelog](https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}) for details.
+          
+          ### Deployment
+          The manifests repository has been automatically updated with the new image tag.
+        draft: false
+        prerelease: false

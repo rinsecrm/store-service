@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
 
-	"github.com/your-org/store-service/core/logging"
+	"github.com/rinsecrm/store-service/core/logging"
 )
 
 // ErrItemNotFound is returned when an item is not found

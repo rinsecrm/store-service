@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25.1-alpine AS builder
 
 # Install git, ca-certificates, and protoc tools
 RUN apk add --no-cache git ca-certificates protobuf-dev

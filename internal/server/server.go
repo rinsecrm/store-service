@@ -8,9 +8,11 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/your-org/store-service/core/logging"
-	"github.com/your-org/store-service/internal/data"
-	pb "github.com/your-org/store-service/proto/go"
+	"github.com/rinsecrm/store-service/core/logging"
+	"github.com/rinsecrm/store-service/internal/data"
+	"github.com/rinsecrm/store-service/internal/metrics"
+	"github.com/rinsecrm/store-service/internal/tracing"
+	pb "github.com/rinsecrm/store-service/proto/go"
 )
 
 // StoreServiceServer implements the StoreService gRPC interface
@@ -28,6 +30,10 @@ func NewStoreServiceServer(store data.StoreInterface) *StoreServiceServer {
 
 // CreateItem creates a new store item
 func (s *StoreServiceServer) CreateItem(ctx context.Context, req *pb.CreateItemRequest) (*pb.CreateItemResponse, error) {
+	// Start custom span for business logic
+	ctx, span := tracing.StartSpan(ctx, "store.create_item")
+	defer span.End()
+
 	start := time.Now()
 
 	// Validate request
@@ -57,6 +63,9 @@ func (s *StoreServiceServer) CreateItem(ctx context.Context, req *pb.CreateItemR
 		req.CreatedBy,
 	)
 	if err != nil {
+		// Record error metrics
+		metrics.RecordStoreOperationError("create")
+
 		logging.WithError(err).WithFields(logging.Fields{
 			"tenant_id": req.TenantId,
 			"name":      req.Name,
@@ -64,10 +73,16 @@ func (s *StoreServiceServer) CreateItem(ctx context.Context, req *pb.CreateItemR
 		return nil, status.Error(codes.Internal, "failed to create item")
 	}
 
+	duration := time.Since(start)
+
+	// Record business metrics
+	metrics.RecordStoreOperation("create")
+	metrics.RecordStoreOperationDuration("create", float64(duration)/float64(time.Second))
+
 	logging.WithFields(logging.Fields{
 		"tenant_id": req.TenantId,
 		"item_id":   item.ItemID,
-		"duration":  time.Since(start),
+		"duration":  duration,
 	}).Info("Item created via gRPC")
 
 	return &pb.CreateItemResponse{
@@ -77,6 +92,10 @@ func (s *StoreServiceServer) CreateItem(ctx context.Context, req *pb.CreateItemR
 
 // GetItem retrieves an item by ID
 func (s *StoreServiceServer) GetItem(ctx context.Context, req *pb.GetItemRequest) (*pb.GetItemResponse, error) {
+	// Start custom span for business logic
+	ctx, span := tracing.StartSpan(ctx, "store.get_item")
+	defer span.End()
+
 	start := time.Now()
 
 	if req.TenantId <= 0 {
@@ -111,6 +130,10 @@ func (s *StoreServiceServer) GetItem(ctx context.Context, req *pb.GetItemRequest
 
 // UpdateItem updates an existing item
 func (s *StoreServiceServer) UpdateItem(ctx context.Context, req *pb.UpdateItemRequest) (*pb.UpdateItemResponse, error) {
+	// Start custom span for business logic
+	ctx, span := tracing.StartSpan(ctx, "store.update_item")
+	defer span.End()
+
 	start := time.Now()
 
 	if req.TenantId <= 0 {
@@ -167,6 +190,10 @@ func (s *StoreServiceServer) UpdateItem(ctx context.Context, req *pb.UpdateItemR
 
 // DeleteItem removes an item (soft delete)
 func (s *StoreServiceServer) DeleteItem(ctx context.Context, req *pb.DeleteItemRequest) (*pb.DeleteItemResponse, error) {
+	// Start custom span for business logic
+	ctx, span := tracing.StartSpan(ctx, "store.delete_item")
+	defer span.End()
+
 	start := time.Now()
 
 	if req.TenantId <= 0 {
@@ -201,6 +228,10 @@ func (s *StoreServiceServer) DeleteItem(ctx context.Context, req *pb.DeleteItemR
 
 // ListItems lists items with filtering and pagination
 func (s *StoreServiceServer) ListItems(ctx context.Context, req *pb.ListItemsRequest) (*pb.ListItemsResponse, error) {
+	// Start custom span for business logic
+	ctx, span := tracing.StartSpan(ctx, "store.list_items")
+	defer span.End()
+
 	start := time.Now()
 
 	if req.TenantId <= 0 {
@@ -254,6 +285,10 @@ func (s *StoreServiceServer) ListItems(ctx context.Context, req *pb.ListItemsReq
 
 // UpdateInventory updates the inventory count for an item
 func (s *StoreServiceServer) UpdateInventory(ctx context.Context, req *pb.UpdateInventoryRequest) (*pb.UpdateInventoryResponse, error) {
+	// Start custom span for business logic
+	ctx, span := tracing.StartSpan(ctx, "store.update_inventory")
+	defer span.End()
+
 	start := time.Now()
 
 	if req.TenantId <= 0 {

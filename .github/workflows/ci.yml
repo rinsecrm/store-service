@@ -1,0 +1,90 @@
+name: Store Service CI/CD Pipeline
+
+# Build and test on PR, build and push on main
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  GO_VERSION: '1.25.1'
+  DOCKER_IMAGE: ghcr.io/rinsecrm/store-service
+  REGISTRY: ghcr.io
+
+jobs:
+  test:
+    name: Test and Build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+
+    - name: Configure Go environment
+      run: |
+        go env -w GOPROXY=https://proxy.golang.org,direct
+        go env -w GOSUMDB=sum.golang.org
+
+    - name: Verify Go environment
+      run: |
+        echo "Go version: $(go version)"
+        echo "GOPROXY: $(go env GOPROXY)"
+        echo "GOSUMDB: $(go env GOSUMDB)"
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Run tests
+      run: make test
+
+    - name: Build binary
+      run: |
+        VERSION="dev-$(git rev-parse --short HEAD)"
+        echo "Building version: $VERSION"
+        go build -ldflags="-X main.version=$VERSION" -o bin/store-service ./cmd/server
+
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: store-service-binary
+        path: bin/store-service
+
+  docker-build:
+    name: Build Docker Image (No Push)
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download binary artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: store-service-binary
+        path: bin/
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image (no push)
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.ci
+        push: false
+        tags: ${{ env.DOCKER_IMAGE }}:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Verify image built successfully
+      run: |
+        echo "Docker image built successfully for verification"
+        echo "Image: ${{ env.DOCKER_IMAGE }}:test"

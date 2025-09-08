@@ -4,7 +4,7 @@ package store.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/your-org/store-service/proto/go;storeproto";
+option go_package = "github.com/rinsecrm/store-service/proto/go;storeproto";
 
 // ItemCategory represents different types of store items
 enum ItemCategory {
