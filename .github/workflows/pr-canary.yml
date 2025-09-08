@@ -46,7 +46,7 @@ jobs:
       run: |
         VERSION="pr-${{ github.event.number }}-$(git rev-parse --short HEAD)"
         echo "Building PR canary version: $VERSION"
-        go build -ldflags="-X main.version=$VERSION" -o bin/$(basename ${{ github.repository }}) .
+        go build -ldflags="-X main.version=$VERSION" -o bin/${{ github.event.repository.name }} .
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3

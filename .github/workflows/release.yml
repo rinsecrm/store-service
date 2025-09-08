@@ -39,7 +39,7 @@ jobs:
       run: |
         VERSION="${{ github.ref_name }}"
         echo "Building release version: $VERSION"
-        go build -ldflags="-X main.version=$VERSION" -o bin/$(basename ${{ github.repository }}) .
+        go build -ldflags="-X main.version=$VERSION" -o bin/${{ github.event.repository.name }} .
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -83,15 +83,15 @@ jobs:
         
         # 1. Create PR for staging
         echo "Creating PR for staging..."
-        git checkout -b "release/$(basename ${{ github.repository }})-staging-$VERSION"
-        sed -i "s/newTag: .*/newTag: $VERSION/" kustomize/$(basename ${{ github.repository }})/overlays/staging/kustomization.yaml
-        git add kustomize/$(basename ${{ github.repository }})/overlays/staging/kustomization.yaml
-        git commit -m "chore: update $(basename ${{ github.repository }}) to $VERSION for staging"
-        git push https://$MANIFESTS_TOKEN@github.com/${{ env.MANIFESTS_REPO }}.git "release/$(basename ${{ github.repository }})-staging-$VERSION"
+        git checkout -b "release/${{ github.event.repository.name }}-staging-$VERSION"
+        sed -i "s/newTag: .*/newTag: $VERSION/" kustomize/${{ github.event.repository.name }}/overlays/staging/kustomization.yaml
+        git add kustomize/${{ github.event.repository.name }}/overlays/staging/kustomization.yaml
+        git commit -m "chore: update ${{ github.event.repository.name }} to $VERSION for staging"
+        git push https://$MANIFESTS_TOKEN@github.com/${{ env.MANIFESTS_REPO }}.git "release/${{ github.event.repository.name }}-staging-$VERSION"
         
         # Create staging PR using GitHub CLI
         gh pr create \
-          --title "Staging: Release $(basename ${{ github.repository }}) $VERSION" \
+          --title "Staging: Release ${{ github.event.repository.name }} $VERSION" \
           --body "Automated release PR for staging environment.
 
         **Version:** $VERSION
@@ -100,20 +100,20 @@ jobs:
 
         This PR updates the staging environment to use the new release." \
           --base main \
-          --head "release/$(basename ${{ github.repository }})-staging-$VERSION" || echo "Staging PR may already exist"
+          --head "release/${{ github.event.repository.name }}-staging-$VERSION" || echo "Staging PR may already exist"
         
         # 2. Create PR for production
         echo "Creating PR for production..."
         git checkout main
-        git checkout -b "release/$(basename ${{ github.repository }})-production-$VERSION"
-        sed -i "s/newTag: .*/newTag: $VERSION/" kustomize/$(basename ${{ github.repository }})/overlays/production/kustomization.yaml
-        git add kustomize/$(basename ${{ github.repository }})/overlays/production/kustomization.yaml
-        git commit -m "chore: update $(basename ${{ github.repository }}) to $VERSION for production"
-        git push https://$MANIFESTS_TOKEN@github.com/${{ env.MANIFESTS_REPO }}.git "release/$(basename ${{ github.repository }})-production-$VERSION"
+        git checkout -b "release/${{ github.event.repository.name }}-production-$VERSION"
+        sed -i "s/newTag: .*/newTag: $VERSION/" kustomize/${{ github.event.repository.name }}/overlays/production/kustomization.yaml
+        git add kustomize/${{ github.event.repository.name }}/overlays/production/kustomization.yaml
+        git commit -m "chore: update ${{ github.event.repository.name }} to $VERSION for production"
+        git push https://$MANIFESTS_TOKEN@github.com/${{ env.MANIFESTS_REPO }}.git "release/${{ github.event.repository.name }}-production-$VERSION"
         
         # Create production PR using GitHub CLI
         gh pr create \
-          --title "Production: Release $(basename ${{ github.repository }}) $VERSION" \
+          --title "Production: Release ${{ github.event.repository.name }} $VERSION" \
           --body "Automated release PR for production environment.
 
         **Version:** $VERSION
@@ -124,7 +124,7 @@ jobs:
         
         **Note:** This should be merged after staging has been tested and approved." \
           --base main \
-          --head "release/$(basename ${{ github.repository }})-production-$VERSION" || echo "Production PR may already exist"
+          --head "release/${{ github.event.repository.name }}-production-$VERSION" || echo "Production PR may already exist"
         
         echo "Release workflow completed:"
         echo "- Integration will automatically get latest via ArgoCD sync"
@@ -137,9 +137,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ github.ref }}
-        release_name: $(basename ${{ github.repository }}) ${{ steps.version.outputs.VERSION }}
+        release_name: ${{ github.event.repository.name }} ${{ steps.version.outputs.VERSION }}
         body: |
-          ## $(basename ${{ github.repository }}) ${{ steps.version.outputs.VERSION }}
+          ## ${{ github.event.repository.name }} ${{ steps.version.outputs.VERSION }}
           
           ### Docker Images
           - `ghcr.io/${{ github.repository }}:${{ steps.version.outputs.VERSION }}`

@@ -48,13 +48,13 @@ jobs:
       run: |
         VERSION="dev-$(git rev-parse --short HEAD)"
         echo "Building version: $VERSION"
-        go build -ldflags="-X main.version=$VERSION" -o bin/$(basename ${{ github.repository }}) .
+        go build -ldflags="-X main.version=$VERSION" -o bin/${{ github.event.repository.name }} .
 
     - name: Upload binary artifact
       uses: actions/upload-artifact@v4
       with:
-        name: $(basename ${{ github.repository }})-binary
-        path: bin/$(basename ${{ github.repository }})
+        name: ${{ github.event.repository.name }}-binary
+        path: bin/${{ github.event.repository.name }}
 
   docker-build:
     name: Build Docker Image (No Push)
@@ -68,7 +68,7 @@ jobs:
     - name: Download binary artifact
       uses: actions/download-artifact@v4
       with:
-        name: $(basename ${{ github.repository }})-binary
+        name: ${{ github.event.repository.name }}-binary
         path: bin/
 
     - name: Set up Docker Buildx
