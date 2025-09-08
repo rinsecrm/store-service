@@ -1,4 +1,4 @@
-name: Store Service CI/CD Pipeline
+name: CI/CD Pipeline
 
 # Build and test on PR, build and push on main
 on:
@@ -48,7 +48,7 @@ jobs:
       run: |
         VERSION="dev-$(git rev-parse --short HEAD)"
         echo "Building version: $VERSION"
-        go build -ldflags="-X main.version=$VERSION" -o bin/$(basename ${{ github.repository }}) ./cmd/server
+        go build -ldflags="-X main.version=$VERSION" -o bin/$(basename ${{ github.repository }}) .
 
     - name: Upload binary artifact
       uses: actions/upload-artifact@v4

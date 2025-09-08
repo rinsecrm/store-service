@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 
 	"github.com/rinsecrm/store-service/core/logging"
 )
@@ -113,7 +114,7 @@ func (s *DynamoStore) CreateItem(ctx context.Context, tenantID int64, name, desc
 
 	av, err := attributevalue.MarshalMap(item)
 	if err != nil {
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": tenantID,
 			"item_name": name,
 		}).Error("Failed to marshal item")
@@ -125,14 +126,14 @@ func (s *DynamoStore) CreateItem(ctx context.Context, tenantID int64, name, desc
 		Item:      av,
 	})
 	if err != nil {
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": tenantID,
 			"item_id":   itemID,
 		}).Error("Failed to put item")
 		return Item{}, fmt.Errorf("failed to put item: %w", err)
 	}
 
-	logging.WithFields(logging.Fields{
+	logging.WithFields(logrus.Fields{
 		"tenant_id": tenantID,
 		"item_id":   itemID,
 		"duration":  time.Since(start),
@@ -153,7 +154,7 @@ func (s *DynamoStore) GetItem(ctx context.Context, tenantID int64, itemID string
 		},
 	})
 	if err != nil {
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": tenantID,
 			"item_id":   itemID,
 		}).Error("Failed to get item")
@@ -161,7 +162,7 @@ func (s *DynamoStore) GetItem(ctx context.Context, tenantID int64, itemID string
 	}
 
 	if result.Item == nil {
-		logging.WithFields(logging.Fields{
+		logging.WithFields(logrus.Fields{
 			"tenant_id": tenantID,
 			"item_id":   itemID,
 		}).Warn("Item not found")
@@ -171,14 +172,14 @@ func (s *DynamoStore) GetItem(ctx context.Context, tenantID int64, itemID string
 	var item Item
 	err = attributevalue.UnmarshalMap(result.Item, &item)
 	if err != nil {
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": tenantID,
 			"item_id":   itemID,
 		}).Error("Failed to unmarshal item")
 		return Item{}, fmt.Errorf("failed to unmarshal item: %w", err)
 	}
 
-	logging.WithFields(logging.Fields{
+	logging.WithFields(logrus.Fields{
 		"tenant_id": tenantID,
 		"item_id":   itemID,
 		"duration":  time.Since(start),
@@ -242,14 +243,14 @@ func (s *DynamoStore) UpdateItem(ctx context.Context, tenantID int64, itemID, na
 		ExpressionAttributeValues: exprAttrValues,
 	})
 	if err != nil {
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": tenantID,
 			"item_id":   itemID,
 		}).Error("Failed to update item")
 		return Item{}, fmt.Errorf("failed to update item: %w", err)
 	}
 
-	logging.WithFields(logging.Fields{
+	logging.WithFields(logrus.Fields{
 		"tenant_id": tenantID,
 		"item_id":   itemID,
 		"duration":  time.Since(start),
@@ -280,14 +281,14 @@ func (s *DynamoStore) DeleteItem(ctx context.Context, tenantID int64, itemID str
 		},
 	})
 	if err != nil {
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": tenantID,
 			"item_id":   itemID,
 		}).Error("Failed to delete item")
 		return fmt.Errorf("failed to delete item: %w", err)
 	}
 
-	logging.WithFields(logging.Fields{
+	logging.WithFields(logrus.Fields{
 		"tenant_id": tenantID,
 		"item_id":   itemID,
 		"duration":  time.Since(start),
@@ -321,7 +322,7 @@ func (s *DynamoStore) ListItems(ctx context.Context, tenantID int64, category It
 
 	result, err := s.client.Query(ctx, input)
 	if err != nil {
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": tenantID,
 		}).Error("Failed to list items")
 		return nil, "", 0, fmt.Errorf("failed to list items: %w", err)
@@ -356,7 +357,7 @@ func (s *DynamoStore) ListItems(ctx context.Context, tenantID int64, category It
 		}
 	}
 
-	logging.WithFields(logging.Fields{
+	logging.WithFields(logrus.Fields{
 		"tenant_id":   tenantID,
 		"items_count": len(items),
 		"duration":    time.Since(start),
@@ -404,14 +405,14 @@ func (s *DynamoStore) UpdateInventory(ctx context.Context, tenantID int64, itemI
 		},
 	})
 	if err != nil {
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": tenantID,
 			"item_id":   itemID,
 		}).Error("Failed to update inventory")
 		return Item{}, previousCount, fmt.Errorf("failed to update inventory: %w", err)
 	}
 
-	logging.WithFields(logging.Fields{
+	logging.WithFields(logrus.Fields{
 		"tenant_id":       tenantID,
 		"item_id":         itemID,
 		"previous_count":  previousCount,

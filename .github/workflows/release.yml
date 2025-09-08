@@ -1,4 +1,4 @@
-name: Store Service Release
+name: Release
 
 # Trigger on version tags
 on:
@@ -39,7 +39,7 @@ jobs:
       run: |
         VERSION="${{ github.ref_name }}"
         echo "Building release version: $VERSION"
-        go build -ldflags="-X main.version=$VERSION" -o bin/$(basename ${{ github.repository }}) ./cmd/server
+        go build -ldflags="-X main.version=$VERSION" -o bin/$(basename ${{ github.repository }}) .
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3

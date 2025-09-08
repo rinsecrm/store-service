@@ -1,0 +1,18 @@
+require "bundler/gem_tasks"
+
+task default: :proto
+
+desc "Generate protobuf files"
+task :proto do
+  puts "Generating Ruby protobuf files..."
+  system "protoc -I.. --ruby_out=lib --grpc_out=lib --plugin=protoc-gen-grpc=grpc_ruby_plugin ../store.proto"
+  puts "Ruby protobuf files generated in lib/"
+end
+
+desc "Clean generated files"
+task :clean do
+  puts "Cleaning generated protobuf files..."
+  FileUtils.rm_f Dir.glob("lib/*_pb.rb")
+  FileUtils.rm_f Dir.glob("lib/*_services_pb.rb")
+  puts "Clean complete"
+end

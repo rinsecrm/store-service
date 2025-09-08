@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"net/http"
 	"strings"
 	"time"
 
@@ -132,6 +133,6 @@ func RecordStoreOperationError(operation string) {
 }
 
 // MetricsHandler returns the Prometheus metrics handler
-func MetricsHandler() *promhttp.Handler {
-	return &promhttp.Handler{}
+func MetricsHandler() http.Handler {
+	return promhttp.Handler()
 }

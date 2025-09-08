@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -66,7 +67,7 @@ func (s *StoreServiceServer) CreateItem(ctx context.Context, req *pb.CreateItemR
 		// Record error metrics
 		metrics.RecordStoreOperationError("create")
 
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": req.TenantId,
 			"name":      req.Name,
 		}).Error("Failed to create item")
@@ -79,7 +80,7 @@ func (s *StoreServiceServer) CreateItem(ctx context.Context, req *pb.CreateItemR
 	metrics.RecordStoreOperation("create")
 	metrics.RecordStoreOperationDuration("create", float64(duration)/float64(time.Second))
 
-	logging.WithFields(logging.Fields{
+	logging.WithFields(logrus.Fields{
 		"tenant_id": req.TenantId,
 		"item_id":   item.ItemID,
 		"duration":  duration,
@@ -110,14 +111,14 @@ func (s *StoreServiceServer) GetItem(ctx context.Context, req *pb.GetItemRequest
 		if err == data.ErrItemNotFound {
 			return nil, status.Error(codes.NotFound, "item not found")
 		}
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": req.TenantId,
 			"item_id":   req.Id,
 		}).Error("Failed to get item")
 		return nil, status.Error(codes.Internal, "failed to get item")
 	}
 
-	logging.WithFields(logging.Fields{
+	logging.WithFields(logrus.Fields{
 		"tenant_id": req.TenantId,
 		"item_id":   req.Id,
 		"duration":  time.Since(start),
@@ -150,7 +151,7 @@ func (s *StoreServiceServer) UpdateItem(ctx context.Context, req *pb.UpdateItemR
 	}
 
 	category := protoToDataCategory(req.Category)
-	status := protoToDataStatus(req.Status)
+	itemStatus := protoToDataStatus(req.Status)
 
 	item, err := s.store.UpdateItem(
 		ctx,
@@ -160,7 +161,7 @@ func (s *StoreServiceServer) UpdateItem(ctx context.Context, req *pb.UpdateItemR
 		req.Description,
 		req.Price,
 		category,
-		status,
+		itemStatus,
 		req.Sku,
 		req.InventoryCount,
 		req.Tags,
@@ -170,14 +171,14 @@ func (s *StoreServiceServer) UpdateItem(ctx context.Context, req *pb.UpdateItemR
 		if err == data.ErrItemNotFound {
 			return nil, status.Error(codes.NotFound, "item not found")
 		}
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": req.TenantId,
 			"item_id":   req.Id,
 		}).Error("Failed to update item")
 		return nil, status.Error(codes.Internal, "failed to update item")
 	}
 
-	logging.WithFields(logging.Fields{
+	logging.WithFields(logrus.Fields{
 		"tenant_id": req.TenantId,
 		"item_id":   req.Id,
 		"duration":  time.Since(start),
@@ -208,14 +209,14 @@ func (s *StoreServiceServer) DeleteItem(ctx context.Context, req *pb.DeleteItemR
 		if err == data.ErrItemNotFound {
 			return nil, status.Error(codes.NotFound, "item not found")
 		}
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": req.TenantId,
 			"item_id":   req.Id,
 		}).Error("Failed to delete item")
 		return nil, status.Error(codes.Internal, "failed to delete item")
 	}
 
-	logging.WithFields(logging.Fields{
+	logging.WithFields(logrus.Fields{
 		"tenant_id": req.TenantId,
 		"item_id":   req.Id,
 		"duration":  time.Since(start),
@@ -247,19 +248,19 @@ func (s *StoreServiceServer) ListItems(ctx context.Context, req *pb.ListItemsReq
 	}
 
 	category := protoToDataCategory(req.Category)
-	status := protoToDataStatus(req.Status)
+	itemStatus := protoToDataStatus(req.Status)
 
 	items, nextPageToken, totalCount, err := s.store.ListItems(
 		ctx,
 		req.TenantId,
 		category,
-		status,
+		itemStatus,
 		req.SearchQuery,
 		pageSize,
 		req.PageToken,
 	)
 	if err != nil {
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": req.TenantId,
 		}).Error("Failed to list items")
 		return nil, status.Error(codes.Internal, "failed to list items")
@@ -270,7 +271,7 @@ func (s *StoreServiceServer) ListItems(ctx context.Context, req *pb.ListItemsReq
 		protoItems = append(protoItems, dataToProtoItem(item))
 	}
 
-	logging.WithFields(logging.Fields{
+	logging.WithFields(logrus.Fields{
 		"tenant_id":   req.TenantId,
 		"items_count": len(items),
 		"duration":    time.Since(start),
@@ -310,14 +311,14 @@ func (s *StoreServiceServer) UpdateInventory(ctx context.Context, req *pb.Update
 		if err == data.ErrItemNotFound {
 			return nil, status.Error(codes.NotFound, "item not found")
 		}
-		logging.WithError(err).WithFields(logging.Fields{
+		logging.WithError(err).WithFields(logrus.Fields{
 			"tenant_id": req.TenantId,
 			"item_id":   req.ItemId,
 		}).Error("Failed to update inventory")
 		return nil, status.Error(codes.Internal, "failed to update inventory")
 	}
 
-	logging.WithFields(logging.Fields{
+	logging.WithFields(logrus.Fields{
 		"tenant_id":       req.TenantId,
 		"item_id":         req.ItemId,
 		"quantity_change": req.QuantityChange,
