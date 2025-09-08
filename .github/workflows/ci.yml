@@ -9,7 +9,7 @@ on:
 
 env:
   GO_VERSION: '1.25.1'
-  DOCKER_IMAGE: ghcr.io/rinsecrm/store-service
+  DOCKER_IMAGE: ghcr.io/${{ github.repository }}
   REGISTRY: ghcr.io
 
 jobs:
@@ -48,13 +48,13 @@ jobs:
       run: |
         VERSION="dev-$(git rev-parse --short HEAD)"
         echo "Building version: $VERSION"
-        go build -ldflags="-X main.version=$VERSION" -o bin/store-service ./cmd/server
+        go build -ldflags="-X main.version=$VERSION" -o bin/$(basename ${{ github.repository }}) ./cmd/server
 
     - name: Upload binary artifact
       uses: actions/upload-artifact@v4
       with:
-        name: store-service-binary
-        path: bin/store-service
+        name: $(basename ${{ github.repository }})-binary
+        path: bin/$(basename ${{ github.repository }})
 
   docker-build:
     name: Build Docker Image (No Push)
@@ -68,7 +68,7 @@ jobs:
     - name: Download binary artifact
       uses: actions/download-artifact@v4
       with:
-        name: store-service-binary
+        name: $(basename ${{ github.repository }})-binary
         path: bin/
 
     - name: Set up Docker Buildx

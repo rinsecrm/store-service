@@ -8,7 +8,7 @@ on:
 
 env:
   GO_VERSION: '1.25.1'
-  DOCKER_IMAGE: ghcr.io/rinsecrm/store-service
+  DOCKER_IMAGE: ghcr.io/${{ github.repository }}
   REGISTRY: ghcr.io
   MANIFESTS_REPO: rinsecrm/manifests-microservices
 
@@ -39,7 +39,7 @@ jobs:
       run: |
         VERSION="${{ github.ref_name }}"
         echo "Building release version: $VERSION"
-        go build -ldflags="-X main.version=$VERSION" -o bin/store-service ./cmd/server
+        go build -ldflags="-X main.version=$VERSION" -o bin/$(basename ${{ github.repository }}) ./cmd/server
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -83,48 +83,48 @@ jobs:
         
         # 1. Create PR for staging
         echo "Creating PR for staging..."
-        git checkout -b "release/store-service-staging-$VERSION"
-        sed -i "s/newTag: .*/newTag: $VERSION/" kustomize/store-service/overlays/staging/kustomization.yaml
-        git add kustomize/store-service/overlays/staging/kustomization.yaml
-        git commit -m "chore: update store-service to $VERSION for staging"
-        git push https://$MANIFESTS_TOKEN@github.com/${{ env.MANIFESTS_REPO }}.git "release/store-service-staging-$VERSION"
+        git checkout -b "release/$(basename ${{ github.repository }})-staging-$VERSION"
+        sed -i "s/newTag: .*/newTag: $VERSION/" kustomize/$(basename ${{ github.repository }})/overlays/staging/kustomization.yaml
+        git add kustomize/$(basename ${{ github.repository }})/overlays/staging/kustomization.yaml
+        git commit -m "chore: update $(basename ${{ github.repository }}) to $VERSION for staging"
+        git push https://$MANIFESTS_TOKEN@github.com/${{ env.MANIFESTS_REPO }}.git "release/$(basename ${{ github.repository }})-staging-$VERSION"
         
         # Create staging PR using GitHub CLI
         gh pr create \
-          --title "Staging: Release Store Service $VERSION" \
+          --title "Staging: Release $(basename ${{ github.repository }}) $VERSION" \
           --body "Automated release PR for staging environment.
 
         **Version:** $VERSION
         **Environment:** Staging
-        **Docker Image:** ghcr.io/rinsecrm/store-service:$VERSION
+        **Docker Image:** ghcr.io/${{ github.repository }}:$VERSION
 
         This PR updates the staging environment to use the new release." \
           --base main \
-          --head "release/store-service-staging-$VERSION" || echo "Staging PR may already exist"
+          --head "release/$(basename ${{ github.repository }})-staging-$VERSION" || echo "Staging PR may already exist"
         
         # 2. Create PR for production
         echo "Creating PR for production..."
         git checkout main
-        git checkout -b "release/store-service-production-$VERSION"
-        sed -i "s/newTag: .*/newTag: $VERSION/" kustomize/store-service/overlays/production/kustomization.yaml
-        git add kustomize/store-service/overlays/production/kustomization.yaml
-        git commit -m "chore: update store-service to $VERSION for production"
-        git push https://$MANIFESTS_TOKEN@github.com/${{ env.MANIFESTS_REPO }}.git "release/store-service-production-$VERSION"
+        git checkout -b "release/$(basename ${{ github.repository }})-production-$VERSION"
+        sed -i "s/newTag: .*/newTag: $VERSION/" kustomize/$(basename ${{ github.repository }})/overlays/production/kustomization.yaml
+        git add kustomize/$(basename ${{ github.repository }})/overlays/production/kustomization.yaml
+        git commit -m "chore: update $(basename ${{ github.repository }}) to $VERSION for production"
+        git push https://$MANIFESTS_TOKEN@github.com/${{ env.MANIFESTS_REPO }}.git "release/$(basename ${{ github.repository }})-production-$VERSION"
         
         # Create production PR using GitHub CLI
         gh pr create \
-          --title "Production: Release Store Service $VERSION" \
+          --title "Production: Release $(basename ${{ github.repository }}) $VERSION" \
           --body "Automated release PR for production environment.
 
         **Version:** $VERSION
         **Environment:** Production
-        **Docker Image:** ghcr.io/rinsecrm/store-service:$VERSION
+        **Docker Image:** ghcr.io/${{ github.repository }}:$VERSION
 
         This PR updates the production environment to use the new release.
         
         **Note:** This should be merged after staging has been tested and approved." \
           --base main \
-          --head "release/store-service-production-$VERSION" || echo "Production PR may already exist"
+          --head "release/$(basename ${{ github.repository }})-production-$VERSION" || echo "Production PR may already exist"
         
         echo "Release workflow completed:"
         echo "- Integration will automatically get latest via ArgoCD sync"
@@ -137,13 +137,13 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ github.ref }}
-        release_name: Store Service ${{ steps.version.outputs.VERSION }}
+        release_name: $(basename ${{ github.repository }}) ${{ steps.version.outputs.VERSION }}
         body: |
-          ## Store Service ${{ steps.version.outputs.VERSION }}
+          ## $(basename ${{ github.repository }}) ${{ steps.version.outputs.VERSION }}
           
           ### Docker Images
-          - `ghcr.io/rinsecrm/store-service:${{ steps.version.outputs.VERSION }}`
-          - `ghcr.io/rinsecrm/store-service:latest`
+          - `ghcr.io/${{ github.repository }}:${{ steps.version.outputs.VERSION }}`
+          - `ghcr.io/${{ github.repository }}:latest`
           
           ### Changes
           See the [changelog](https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}) for details.
