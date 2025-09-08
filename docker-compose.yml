@@ -1,0 +1,11 @@
+# Development Environment
+# Run with: docker-compose up
+# This starts DynamoDB Local for development
+services:
+  # DynamoDB Local for development
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb-local
+    ports:
+      - "8000:8000"
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"

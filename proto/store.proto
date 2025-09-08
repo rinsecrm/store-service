@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package store.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/your-org/store-service/proto/go;storeproto";
+
+// ItemCategory represents different types of store items
+enum ItemCategory {
+  ITEM_CATEGORY_UNSPECIFIED = 0;
+  ITEM_CATEGORY_ELECTRONICS = 1;
+  ITEM_CATEGORY_CLOTHING = 2;
+  ITEM_CATEGORY_BOOKS = 3;
+  ITEM_CATEGORY_HOME = 4;
+  ITEM_CATEGORY_SPORTS = 5;
+}
+
+// ItemStatus represents the current status of an item
+enum ItemStatus {
+  ITEM_STATUS_UNSPECIFIED = 0;
+  ITEM_STATUS_ACTIVE = 1;
+  ITEM_STATUS_INACTIVE = 2;
+  ITEM_STATUS_OUT_OF_STOCK = 3;
+  ITEM_STATUS_DISCONTINUED = 4;
+}
+
+// Item represents a store item with enhanced fields
+message Item {
+  string id = 1;
+  int64 tenant_id = 2;           // Multi-tenancy support
+  string name = 3;
+  string description = 4;
+  double price = 5;
+  ItemCategory category = 6;
+  ItemStatus status = 7;
+  string sku = 8;                // Stock Keeping Unit
+  int32 inventory_count = 9;     // Current inventory
+  repeated string tags = 10;     // Item tags for categorization
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  string created_by = 13;        // User who created the item
+  string updated_by = 14;        // User who last updated the item
+}
+
+// CreateItemRequest for creating a new item
+message CreateItemRequest {
+  int64 tenant_id = 1;
+  string name = 2;
+  string description = 3;
+  double price = 4;
+  ItemCategory category = 5;
+  string sku = 6;
+  int32 inventory_count = 7;
+  repeated string tags = 8;
+  string created_by = 9;
+}
+
+message CreateItemResponse {
+  Item item = 1;
+}
+
+// GetItemRequest for retrieving an item
+message GetItemRequest {
+  int64 tenant_id = 1;
+  string id = 2;
+}
+
+message GetItemResponse {
+  Item item = 1;
+}
+
+// UpdateItemRequest for updating an existing item
+message UpdateItemRequest {
+  int64 tenant_id = 1;
+  string id = 2;
+  string name = 3;
+  string description = 4;
+  double price = 5;
+  ItemCategory category = 6;
+  ItemStatus status = 7;
+  string sku = 8;
+  int32 inventory_count = 9;
+  repeated string tags = 10;
+  string updated_by = 11;
+}
+
+message UpdateItemResponse {
+  Item item = 1;
+}
+
+// DeleteItemRequest for removing an item
+message DeleteItemRequest {
+  int64 tenant_id = 1;
+  string id = 2;
+}
+
+message DeleteItemResponse {
+  bool success = 1;
+}
+
+// ListItemsRequest for listing items with filtering and pagination
+message ListItemsRequest {
+  int64 tenant_id = 1;
+  ItemCategory category = 2;     // Optional: filter by category
+  ItemStatus status = 3;         // Optional: filter by status
+  string search_query = 4;       // Optional: search in name/description
+  int32 page_size = 5;           // Page size (default 100)
+  string page_token = 6;         // Pagination token
+}
+
+message ListItemsResponse {
+  repeated Item items = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;         // Total number of items (for UI pagination)
+}
+
+// UpdateInventoryRequest for updating item inventory
+message UpdateInventoryRequest {
+  int64 tenant_id = 1;
+  string item_id = 2;
+  int32 quantity_change = 3;     // Can be positive (add) or negative (subtract)
+  string reason = 4;             // Reason for inventory change
+  string updated_by = 5;
+}
+
+message UpdateInventoryResponse {
+  Item item = 1;
+  int32 previous_count = 2;      // Previous inventory count
+}
+
+// StoreService provides CRUD operations for store items
+service StoreService {
+  // CreateItem creates a new store item
+  rpc CreateItem(CreateItemRequest) returns (CreateItemResponse);
+  
+  // GetItem retrieves an item by ID
+  rpc GetItem(GetItemRequest) returns (GetItemResponse);
+  
+  // UpdateItem updates an existing item
+  rpc UpdateItem(UpdateItemRequest) returns (UpdateItemResponse);
+  
+  // DeleteItem removes an item (soft delete by setting status to DISCONTINUED)
+  rpc DeleteItem(DeleteItemRequest) returns (DeleteItemResponse);
+  
+  // ListItems lists items with optional filtering and pagination
+  rpc ListItems(ListItemsRequest) returns (ListItemsResponse);
+  
+  // UpdateInventory updates the inventory count for an item
+  rpc UpdateInventory(UpdateInventoryRequest) returns (UpdateInventoryResponse);
+}

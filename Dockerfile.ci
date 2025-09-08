@@ -1,0 +1,24 @@
+# CI-optimized Dockerfile - expects pre-built binary
+# This Dockerfile is designed for CI/CD where code is built and tested separately
+
+# CA certificates stage - extract certificates from alpine
+FROM alpine:latest AS ca-certs
+RUN apk add --no-cache ca-certificates
+
+# Final stage - start from scratch for maximum security
+FROM scratch
+
+# Copy CA certificates from the ca-certs stage
+COPY --from=ca-certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+# Copy the pre-built binary (expected to be built by CI)
+COPY bin/store-service /store-service
+
+# Set working directory
+WORKDIR /
+
+# Expose port
+EXPOSE 8080
+
+# Run the server
+CMD ["/store-service"]

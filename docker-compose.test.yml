@@ -1,0 +1,11 @@
+# Testing Environment
+# Run with: docker-compose -f docker-compose.test.yml up
+# This starts DynamoDB Local for testing (different ports)
+services:
+  # DynamoDB Local for testing (different port to avoid conflicts)
+  dynamodb-local-test:
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb-local-test
+    ports:
+      - "8001:8000"  # Use port 8001 externally to avoid conflict with dev
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"

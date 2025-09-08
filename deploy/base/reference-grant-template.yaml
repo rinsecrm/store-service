@@ -1,0 +1,14 @@
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-backoffice-grpcroute
+  namespace: store-canary-pr-PLACEHOLDER  # target namespace
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: GRPCRoute
+      namespace: backoffice         # the route lives here
+  to:
+    - group: ""                     # core/v1 Service
+      kind: Service
+      name: store                   # allow referencing this Service
